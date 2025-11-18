@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MediAlert - Full Screen Medicine Reminder</title>
+
+<style>
+/* Full-screen setup */
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    width: 100%;
+    font-family: Arial, sans-serif;
+    background: #eef2f3;
+}
+
+/* Container fills entire screen */
+.container {
+    width: 100%;
+    height: 100%;
+    background: #eef2f3;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+/* Header */
+h2 {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+/* Inputs and buttons */
+input, button {
+    width: 100%;
+    padding: 12px;
+    margin-top: 10px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    font-size: 16px;
+    box-sizing: border-box;
+}
+
+button {
+    background: #007bff;
+    color: white;
+    cursor: pointer;
+    border: none;
+}
+
+button:hover {
+    background: #0056b3;
+}
+
+/* Reminder list */
+ul {
+    margin-top: 20px;
+    padding: 0;
+    flex-grow: 1;
+    overflow-y: auto;
+}
+
+li {
+    list-style: none;
+    background: #d9eaff;
+    padding: 12px;
+    border-radius: 6px;
+    margin-top: 8px;
+    font-size: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+li button {
+    width: auto;
+    padding: 5px 12px;
+    background: #dc3545;
+    border: none;
+    color: white;
+    cursor: pointer;
+    border-radius: 5px;
+    font-size: 14px;
+}
+
+li button:hover {
+    background: #a71d2a;
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+    <h2>⏰ MediAlert - Medicine Reminder</h2>
+
+    <input type="text" id="medicine" placeholder="Enter medicine name">
+    <input type="time" id="time">
+    <input type="number" id="days" placeholder="Number of days" min="1">
+
+    <button onclick="addReminder()">Add Reminder</button>
+
+    <ul id="reminderList"></ul>
+</div>
+
+<!-- SOUND ALERT -->
+<audio id="alertSound">
+    <source src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" type="audio/ogg">
+</audio>
+
+<script>
+let reminders = JSON.parse(localStorage.getItem("reminders") || "[]");
+
+// Display reminders on load
+updateReminderList();
+
+// Add reminder
+function addReminder() {
+    let medicine = document.getElementById("medicine").value.trim();
+    let time = document.getElementById("time").value;
+    let days = parseInt(document.getElementById("days").value);
+
+    if (!medicine || !time || !days) {
+        alert("Please enter medicine name, time, and number of days!");
+        return;
+    }
+
+    reminders.push({
+        medicine: medicine,
+        time: time,
+        startDate: new Date().toISOString().split('T')[0],
+        repeatDays: days,
+        triggeredDates: []
+    });
+
+    saveReminders();
+    updateReminderList();
+
+    document.getElementById("medicine").value = "";
+    document.getElementById("time").value = "";
+    document.getElementById("days").value = "";
+}
+
+// Save to localStorage
+function saveReminders() {
+    localStorage.setItem("reminders", JSON.stringify(reminders));
+}
+
+// Show reminders
+function updateReminderList() {
+    let list = document.getElementById("reminderList");
+    list.innerHTML = "";
+
+    reminders.forEach((r, index) => {
+        let li = document.createElement("li");
+        li.textContent = `${r.medicine} - ${r.time} - ${r.repeatDays} day(s)`;
+
+        let delBtn = document.createElement("button");
+        delBtn.textContent = "Delete";
+        delBtn.onclick = () => {
+            reminders.splice(index, 1);
+            saveReminders();
+            updateReminderList();
+        };
+        li.appendChild(delBtn);
+
+        list.appendChild(li);
+    });
+}
+
+// Sound + Voice alert
+function triggerAlert(medicine) {
+    document.getElementById("alertSound").play();
+
+    let speak = new SpeechSynthesisUtterance("It's time to take " + medicine);
+    speak.volume = 1;   // 0 to 1
+    speak.rate = 1;     // normal speed
+    speak.pitch = 1.2;  // slightly higher pitch for clarity
+
+    // Pick a clear English voice if available
+    let voices = speechSynthesis.getVoices();
+    if (voices.length > 0) {
+        speak.voice = voices.find(v => v.lang.startsWith("en")) || voices[0];
+    }
+
+    speechSynthesis.speak(speak);
+}
+
+// Check reminders every second
+setInterval(() => {
+    let now = new Date();
+    let currentTime =
+        now.getHours().toString().padStart(2, '0') + ":" +
+        now.getMinutes().toString().padStart(2, '0');
+    let today = now.toISOString().split('T')[0];
+
+    reminders.forEach(r => {
+        let start = new Date(r.startDate);
+        let end = new Date(start);
+        end.setDate(end.getDate() + r.repeatDays - 1);
+
+        if (r.time === currentTime &&
+            today >= r.startDate && today <= end.toISOString().split('T')[0] &&
+            !r.triggeredDates.includes(today)) {
+
+            r.triggeredDates.push(today);
+            triggerAlert(r.medicine);
+            saveReminders();
+        }
+    });
+}, 1000);
+</script>
+
+</body>
+</html>
