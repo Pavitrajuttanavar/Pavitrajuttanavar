@@ -83,8 +83,8 @@ At reminder time:
 ---
 
 ## 👩‍💻 Author / Team
-**Pavitra J**
 **Laxmi Jalikatti** 
+**Pavitra J**
 **Dikshita M**
 **Ramya M**
 Hackathon Project – MediNote (2025)
